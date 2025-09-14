@@ -32,7 +32,7 @@ IMAGE_CHOICES = [
     ("Snoopy (grabbing)", "snoopy-grabbing.png"),
 ]
 WINDOW_SIZE = (900, 600)
-BG_COLOR = "#1a1a1a"
+BG_COLOR = "#c0c0c0"
 TARGET_EASING = 0.15         # 0..1; higher = snappier
 MAX_SPEED = 18               # pixels per frame cap
 FPS = 60
