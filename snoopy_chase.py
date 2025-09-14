@@ -33,10 +33,12 @@ IMAGE_CHOICES = [
 ]
 WINDOW_SIZE = (900, 600)
 BG_COLOR = "#c0c0c0"
-TARGET_EASING = 0.15         # 0..1; higher = snappier
+TARGET_EASING: float = 0.15  # 0..1; higher = snappier
 MAX_SPEED = 18               # pixels per frame cap
 FPS = 60
-SPRITE_SCALE = 0.45          # scale your image if it's large
+SPRITE_SCALE: float = 0.45   # scale your image if it's large
+CURSOR_NORMAL = "arrow"      # pick "crosshair" if you prefer
+POINTER_PADDING = 2          # small fudge factor (pixels) around the sprite
 # ----------------------------
 
 class ImageChoiceDialog(tk.Toplevel):
@@ -102,7 +104,7 @@ class ChaserApp:
         self.root.minsize(480, 360)
 
         # Canvas
-        self.canvas = tk.Canvas(root, bg=BG_COLOR, highlightthickness=0, cursor="arrow")
+        self.canvas = tk.Canvas(root, bg=BG_COLOR, highlightthickness=0, cursor=CURSOR_NORMAL)
         self.canvas.pack(fill="both", expand=True)
 
         # Load sprite (with robust error handling)
@@ -130,8 +132,11 @@ class ChaserApp:
         # Bindings
         self.canvas.bind("<Motion>", self.on_mouse_move)
         self.canvas.bind("<Configure>", self.on_resize)
+        self.canvas.bind("<Enter>", lambda e: self.canvas.config(cursor=CURSOR_NORMAL))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.config(cursor="arrow"))
         self.root.bind("<Escape>", lambda e: self.root.destroy())
 
+        self._cursor_hidden = False   # track the current cursor state
         self._running = True
         self.loop()
 
@@ -175,6 +180,20 @@ class ChaserApp:
         if (nx, ny) != (x, y):
             self.canvas.coords(self.sprite, nx, ny)
 
+    # --- Pointer-over-sprite test (rectangle-based, fast & simple) ---
+    def pointer_over_sprite(self) -> bool:
+        if not self.canvas.find_withtag(self.sprite):
+            return False
+        sx, sy = self.canvas.coords(self.sprite)   # sprite center
+        half_w, half_h = self.sprite_w / 2, self.sprite_h / 2
+        x0 = sx - half_w - POINTER_PADDING
+        y0 = sy - half_h - POINTER_PADDING
+        x1 = sx + half_w + POINTER_PADDING
+        y1 = sy + half_h + POINTER_PADDING
+
+        mx, my = self.target  # latest mouse position from <Motion>
+        return (x0 <= mx <= x1) and (y0 <= my <= y1)
+
     def loop(self):
         if not self._running or not self.canvas.find_withtag(self.sprite):
             return
@@ -194,6 +213,15 @@ class ChaserApp:
 
         nx, ny = self.clamp_to_canvas(x + desired_vx, y + desired_vy)
         self.canvas.coords(self.sprite, nx, ny)
+
+        if self.pointer_over_sprite():
+            if not self._cursor_hidden:
+                self.canvas.config(cursor="none")
+                self._cursor_hidden = True
+        else:
+            if self._cursor_hidden:
+                self.canvas.config(cursor=CURSOR_NORMAL)
+                self._cursor_hidden = False
 
         self.root.after(int(1000 / FPS), self.loop)
 
